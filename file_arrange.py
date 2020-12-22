@@ -7,10 +7,16 @@ import os
 import sys
 import subprocess
 import time
+from decimal import Decimal
 
-SPLIT_SIZE = 20
-TAR_SIZE = 16
+SPLIT_SIZE = 32
+TAR_SIZE = 16.2
 
+# 0-splitlist 1-tarlist 2-cplist 3-findlist
+TYPE_SPLIT = 0
+TYPE_TAR = 1
+TYPE_CP = 2
+TYPE_FIND = 3
 
 # For test KB
 # SPLIT_SIZE = 10.0
@@ -41,13 +47,30 @@ def writeRecord(info, output):
     file_object.close()
 
 
+def writeLog(type, infos, output):
+    timestr = time.strftime("%Y-%m-%d", time.localtime())
+    filename = output + '/' + timestr + '_log.txt'
+    with open(filename, 'a+', encoding="utf-8") as file_object:
+        if type == TYPE_SPLIT:
+            file_object.write('==========================Split Begin==============================' + '\n')
+        elif type == TYPE_TAR:
+            file_object.write('==========================Tar Begin==============================' + '\n')
+        elif type == TYPE_CP:
+            file_object.write('==========================CP Begin==============================' + '\n')
+        else:
+            file_object.write('==========================Find Begin==============================' + '\n')
+        for info in infos:
+            file_object.write(str(info) + "\n")
+    file_object.close()
+
+
 def splitFiles(splitFileList, out_path):
     for file in splitFileList:
         name = file[0]
         size = file[1]
         timestamp = str(round(int(time.time() * 1000)))
         targetName = name.split('/')[-1]
-        cmd = 'split -b 16G ' + name + ' ' + out_path + '/' + timestamp + '_' + targetName
+        cmd = 'split -b 17G ' + name + ' ' + out_path + '/' + timestamp + '_' + targetName
         # cmd = 'split -b 10K ' + name + ' ' + out_path + '/' + timestamp + '_' + targetName
         process = subprocess.run(args=cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
@@ -64,6 +87,7 @@ def tarFiles(tarFileList, out_path):
         size = float(file[1])
         total = total + size
         if total > TAR_SIZE:  # tar files
+            subList.append(file)
             tarList.append(subList)
             total = 0
             subList = []
@@ -101,11 +125,14 @@ def filterFile(fileInfos):
             tarFileList.append(file)
         elif TAR_SIZE <= size < SPLIT_SIZE:
             cpFileList.append(file)
-    print('==========================FilterList Begin==============================')
-    print(splitFileList)
-    print(tarFileList)
-    print(cpFileList)
-    print('==========================FilterList End==============================')
+    # print('==========================FilterList Begin==============================')
+    # print(splitFileList)
+    writeLog(TYPE_SPLIT, splitFileList, out_path)
+    # print(tarFileList)
+    writeLog(TYPE_TAR, tarFileList, out_path)
+    # print(cpFileList)
+    writeLog(TYPE_CP, cpFileList, out_path)
+    # print('==========================FilterList End==============================')
     return splitFileList, tarFileList, cpFileList
 
 
@@ -136,9 +163,10 @@ if __name__ == '__main__':
         fileSize = getGBFileSize(stat.st_size)
         fileInfos.append([file.replace(' ', '\ '), fileSize])
         # print(file, fileSize)
-    print('==========================FindFiles Begin==============================')
-    print(fileInfos)
-    print('==========================FindFiles End==============================')
+    # print('==========================FindFiles Begin==============================')
+    # print(fileInfos)
+    writeLog(TYPE_FIND, fileInfos, out_path)
+    # print('==========================FindFiles End==============================')
     splitFileList, tarFileList, cpFileList = filterFile(fileInfos)
     splitFiles(splitFileList, out_path)
     tarFiles(tarFileList, out_path)
